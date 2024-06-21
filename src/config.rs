@@ -20,6 +20,8 @@
 
 //! [`Litep2p`](`crate::Litep2p`) configuration.
 
+#[cfg(feature = "webrtc")]
+use crate::transport::webrtc::config::Config as WebRtcConfig;
 use crate::{
     crypto::ed25519::Keypair,
     executor::{DefaultExecutor, Executor},
@@ -30,8 +32,7 @@ use crate::{
     },
     transport::{
         quic::config::Config as QuicConfig, tcp::config::Config as TcpConfig,
-        webrtc::config::Config as WebRtcConfig, websocket::config::Config as WebSocketConfig,
-        MAX_PARALLEL_DIALS,
+        websocket::config::Config as WebSocketConfig, MAX_PARALLEL_DIALS,
     },
     types::protocol::ProtocolName,
     PeerId,
@@ -69,6 +70,7 @@ pub struct ConfigBuilder {
     quic: Option<QuicConfig>,
 
     /// WebRTC transport config.
+    #[cfg(feature = "webrtc")]
     webrtc: Option<WebRtcConfig>,
 
     /// WebSocket transport config.
@@ -123,6 +125,7 @@ impl ConfigBuilder {
         Self {
             tcp: None,
             quic: None,
+            #[cfg(feature = "webrtc")]
             webrtc: None,
             websocket: None,
             keypair: None,
@@ -153,6 +156,7 @@ impl ConfigBuilder {
     }
 
     /// Add WebRTC transport configuration, enabling the transport.
+    #[cfg(feature = "webrtc")]
     pub fn with_webrtc(mut self, config: WebRtcConfig) -> Self {
         self.webrtc = Some(config);
         self
@@ -255,6 +259,7 @@ impl ConfigBuilder {
             tcp: self.tcp.take(),
             mdns: self.mdns.take(),
             quic: self.quic.take(),
+            #[cfg(feature = "webrtc")]
             webrtc: self.webrtc.take(),
             websocket: self.websocket.take(),
             ping: self.ping.take(),
@@ -280,6 +285,7 @@ pub struct Litep2pConfig {
     pub(crate) quic: Option<QuicConfig>,
 
     /// WebRTC transport config.
+    #[cfg(feature = "webrtc")]
     pub(crate) webrtc: Option<WebRtcConfig>,
 
     /// WebSocket transport config.

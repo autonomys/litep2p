@@ -29,6 +29,7 @@ use std::{fmt::Debug, time::Duration};
 
 pub mod quic;
 pub mod tcp;
+#[cfg(feature = "webrtc")]
 pub mod webrtc;
 pub mod websocket;
 

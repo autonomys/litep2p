@@ -28,6 +28,9 @@
 #![allow(clippy::assign_op_pattern)]
 #![allow(clippy::match_like_matches_macro)]
 
+#[cfg(feature = "webrtc")]
+use crate::transport::webrtc::WebRtcTransport;
+
 use crate::{
     config::Litep2pConfig,
     protocol::{
@@ -40,7 +43,6 @@ use crate::{
         manager::{SupportedTransport, TransportManager},
         quic::QuicTransport,
         tcp::TcpTransport,
-        webrtc::WebRtcTransport,
         websocket::WebSocketTransport,
         TransportBuilder, TransportEvent,
     },
@@ -312,6 +314,7 @@ impl Litep2p {
         }
 
         // enable webrtc transport if the config exists
+        #[cfg(feature = "webrtc")]
         if let Some(config) = litep2p_config.webrtc.take() {
             let handle = transport_manager.transport_handle(Arc::clone(&litep2p_config.executor));
             let (transport, transport_listen_addresses) =
@@ -403,6 +406,7 @@ impl Litep2p {
             .websocket
             .is_some()
             .then(|| supported_transports.insert(SupportedTransport::WebSocket));
+        #[cfg(feature = "webrtc")]
         config
             .webrtc
             .is_some()
@@ -454,18 +458,21 @@ impl Litep2p {
     pub async fn next_event(&mut self) -> Option<Litep2pEvent> {
         loop {
             match self.transport_manager.next().await? {
-                TransportEvent::ConnectionEstablished { peer, endpoint, .. } =>
-                    return Some(Litep2pEvent::ConnectionEstablished { peer, endpoint }),
+                TransportEvent::ConnectionEstablished { peer, endpoint, .. } => {
+                    return Some(Litep2pEvent::ConnectionEstablished { peer, endpoint })
+                }
                 TransportEvent::ConnectionClosed {
                     peer,
                     connection_id,
-                } =>
+                } => {
                     return Some(Litep2pEvent::ConnectionClosed {
                         peer,
                         connection_id,
-                    }),
-                TransportEvent::DialFailure { address, error, .. } =>
-                    return Some(Litep2pEvent::DialFailure { address, error }),
+                    })
+                }
+                TransportEvent::DialFailure { address, error, .. } => {
+                    return Some(Litep2pEvent::DialFailure { address, error })
+                }
                 _ => {}
             }
         }
