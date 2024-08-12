@@ -19,15 +19,17 @@
 // DEALINGS IN THE SOFTWARE.
 
 use futures::StreamExt;
+#[cfg(feature = "webrtc")]
+use litep2p::transport::webrtc::config::Config;
 use litep2p::{
     config::ConfigBuilder as Litep2pConfigBuilder,
     crypto::ed25519::Keypair,
     protocol::{libp2p::ping, notification::ConfigBuilder},
-    transport::webrtc::config::Config,
     types::protocol::ProtocolName,
     Litep2p,
 };
 
+#[cfg(feature = "webrtc")]
 #[tokio::test]
 #[ignore]
 async fn webrtc_test() {
