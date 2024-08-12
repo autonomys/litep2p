@@ -21,7 +21,8 @@
 use crate::{
     codec::ProtocolCodec,
     protocol::libp2p::kademlia::handle::{
-        KademliaCommand, KademliaEvent, KademliaHandle, RoutingTableUpdateMode,
+        IncomingRecordValidationMode, KademliaCommand, KademliaEvent, KademliaHandle,
+        RoutingTableUpdateMode,
     },
     types::protocol::ProtocolName,
     PeerId, DEFAULT_CHANNEL_SIZE,
@@ -30,7 +31,10 @@ use crate::{
 use multiaddr::Multiaddr;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
+
+/// Default TTL for the records.
+const DEFAULT_TTL: u64 = 36 * 60 * 60;
 
 /// Protocol name.
 const PROTOCOL_NAME: &str = "/ipfs/kad/1.0.0";
@@ -50,7 +54,6 @@ pub struct Config {
     pub(crate) codec: ProtocolCodec,
 
     /// Replication factor.
-    #[allow(unused)]
     pub(super) replication_factor: usize,
 
     /// Known peers.
@@ -58,6 +61,12 @@ pub struct Config {
 
     /// Routing table update mode.
     pub(super) update_mode: RoutingTableUpdateMode,
+
+    /// Incoming records validation mode.
+    pub(super) validation_mode: IncomingRecordValidationMode,
+
+    /// Default record TTl.
+    pub(super) record_ttl: Duration,
 
     /// TX channel for sending events to `KademliaHandle`.
     pub(super) event_tx: Sender<KademliaEvent>,
@@ -72,6 +81,8 @@ impl Config {
         known_peers: HashMap<PeerId, Vec<Multiaddr>>,
         mut protocol_names: Vec<ProtocolName>,
         update_mode: RoutingTableUpdateMode,
+        validation_mode: IncomingRecordValidationMode,
+        record_ttl: Duration,
     ) -> (Self, KademliaHandle) {
         let (cmd_tx, cmd_rx) = channel(DEFAULT_CHANNEL_SIZE);
         let (event_tx, event_rx) = channel(DEFAULT_CHANNEL_SIZE);
@@ -85,6 +96,8 @@ impl Config {
             Config {
                 protocol_names,
                 update_mode,
+                validation_mode,
+                record_ttl,
                 codec: ProtocolCodec::UnsignedVarint(None),
                 replication_factor,
                 known_peers,
@@ -102,6 +115,8 @@ impl Config {
             HashMap::new(),
             Vec::new(),
             RoutingTableUpdateMode::Automatic,
+            IncomingRecordValidationMode::Automatic,
+            Duration::from_secs(DEFAULT_TTL),
         )
     }
 }
@@ -115,11 +130,17 @@ pub struct ConfigBuilder {
     /// Routing table update mode.
     pub(super) update_mode: RoutingTableUpdateMode,
 
+    /// Incoming records validation mode.
+    pub(super) validation_mode: IncomingRecordValidationMode,
+
     /// Known peers.
     pub(super) known_peers: HashMap<PeerId, Vec<Multiaddr>>,
 
     /// Protocol names.
     pub(super) protocol_names: Vec<ProtocolName>,
+
+    /// Default TTL for the records.
+    pub(super) record_ttl: Duration,
 }
 
 impl Default for ConfigBuilder {
@@ -136,6 +157,8 @@ impl ConfigBuilder {
             known_peers: HashMap::new(),
             protocol_names: Vec::new(),
             update_mode: RoutingTableUpdateMode::Automatic,
+            validation_mode: IncomingRecordValidationMode::Automatic,
+            record_ttl: Duration::from_secs(DEFAULT_TTL),
         }
     }
 
@@ -157,6 +180,15 @@ impl ConfigBuilder {
         self
     }
 
+    /// Set incoming records validation mode.
+    pub fn with_incoming_records_validation_mode(
+        mut self,
+        mode: IncomingRecordValidationMode,
+    ) -> Self {
+        self.validation_mode = mode;
+        self
+    }
+
     /// Set Kademlia protocol names, overriding the default protocol name.
     ///
     /// The order of the protocol names signifies preference so if, for example, there are two
@@ -171,6 +203,14 @@ impl ConfigBuilder {
         self
     }
 
+    /// Set default TTL for the records.
+    ///
+    /// If unspecified, the default TTL is 36 hours.
+    pub fn with_record_ttl(mut self, record_ttl: Duration) -> Self {
+        self.record_ttl = record_ttl;
+        self
+    }
+
     /// Build Kademlia [`Config`].
     pub fn build(self) -> (Config, KademliaHandle) {
         Config::new(
@@ -178,6 +218,8 @@ impl ConfigBuilder {
             self.known_peers,
             self.protocol_names,
             self.update_mode,
+            self.validation_mode,
+            self.record_ttl,
         )
     }
 }
